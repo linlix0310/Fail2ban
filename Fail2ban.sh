@@ -74,15 +74,23 @@ fi
 echo "=== 5. 配置 Fail2ban 规则 ==="
 JAIL_LOCAL="/etc/fail2ban/jail.local"
 
-# 根据系统选择合适的日志路径
-LOGPATH=""
+# 根据系统选择合适的 backend 和日志配置：
+# - 有 /var/log/auth.log 或 /var/log/secure 就按文件模式读
+# - 否则如果有 systemd journal，就用 backend=systemd，不写 logpath
+BACKEND="auto"
+LOGPATH_LINE=""
+
 if [[ -f /var/log/auth.log ]]; then
-  LOGPATH="/var/log/auth.log"
+  LOGPATH_LINE="logpath = /var/log/auth.log"
 elif [[ -f /var/log/secure ]]; then
-  LOGPATH="/var/log/secure"
+  LOGPATH_LINE="logpath = /var/log/secure"
+elif [[ -S /run/systemd/journal/socket ]]; then
+  # 没有传统日志文件，但有 systemd 日志
+  BACKEND="systemd"
+  # 不写 logpath，让 fail2ban 自己从 journal 中找 sshd 日志
 else
-  # 如果都没有，保留一个默认值，后续可手动调整
-  LOGPATH="/var/log/auth.log"
+  # 实在啥都没有，就先默认写 /var/log/auth.log，后续你可以手动调整
+  LOGPATH_LINE="logpath = /var/log/auth.log"
 fi
 
 cat > "$JAIL_LOCAL" <<EOF
@@ -90,13 +98,13 @@ cat > "$JAIL_LOCAL" <<EOF
 bantime  = ${JAIL_BAN_TIME}
 findtime = ${JAIL_FIND_TIME}
 maxretry = ${JAIL_MAX_RETRY}
+backend  = ${BACKEND}
 
 [sshd]
 enabled = true
 port    = ${NEW_SSH_PORT}
 filter  = sshd
-logpath = ${LOGPATH}
-backend = auto
+${LOGPATH_LINE}
 EOF
 
 echo "Fail2ban 配置已写入 $JAIL_LOCAL"
