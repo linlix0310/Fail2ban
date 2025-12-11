@@ -9,6 +9,7 @@ JAIL_MAX_RETRY=5            # 最大失败次数
 JAIL_FIND_TIME=600          # 统计失败登录时间窗（秒）
 JAIL_BAN_TIME=86400         # 封禁时长（秒），默认 1 天
 
+
 set -euo pipefail
 
 # 1. 检查是否 root
@@ -62,9 +63,11 @@ fi
 echo "=== 4. 安装 Fail2ban ==="
 if command -v apt &>/dev/null; then
   apt update
+  apt install -y python3-systemd
   apt install -y fail2ban
 elif command -v yum &>/dev/null; then
   yum install -y epel-release || true
+  yum install -y python3-systemd
   yum install -y fail2ban
 else
   echo "未检测到 apt 或 yum，请手动安装 fail2ban 后再配置。"
